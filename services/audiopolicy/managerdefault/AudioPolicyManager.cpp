@@ -824,8 +824,13 @@ status_t AudioPolicyManager::getOutputForAttr(const audio_attributes_t *attr,
         *portId = AudioPort::getNextUniqueId();
     }
 
+ //Prioritize USB devices over bus devices
+    audio_devices_t priorityDevices = AUDIO_DEVICE_OUT_ALL_USB;
+    bool getPolicyMixOutput = mAvailableOutputDevices.getDevicesFromType(priorityDevices).size() == 0;
+
+
     sp<SwAudioOutputDescriptor> desc;
-    if (mPolicyMixes.getOutputForAttr(attributes, uid, desc) == NO_ERROR) {
+    if (getPolicyMixOutput && mPolicyMixes.getOutputForAttr(attributes, uid, desc) == NO_ERROR) {
         ALOG_ASSERT(desc != 0, "Invalid desc returned by getOutputForAttr");
         if (!audio_has_proportional_frames(config->format)) {
             return BAD_VALUE;
