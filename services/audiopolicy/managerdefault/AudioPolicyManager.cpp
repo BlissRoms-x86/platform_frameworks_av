@@ -5655,6 +5655,9 @@ status_t AudioPolicyManager::checkAndSetVolume(audio_stream_type_t stream,
 
     if (device == AUDIO_DEVICE_NONE) {
         device = outputDesc->device();
+        ALOGW("checkAndSetVolume() skip setVolume : target device = %d, actual device = %d",
+             AUDIO_DEVICE_NONE, device);
+        return NO_ERROR;
     }
 
     float volumeDb = computeVolume(stream, index, device);
