@@ -294,7 +294,6 @@ private:
     int                         mCurrentPosition;
     MediaPlayerSeekMode         mCurrentSeekMode;
     int                         mSeekPosition;
-    int                         mSeekTime;
     MediaPlayerSeekMode         mSeekMode;
     bool                        mPrepareSync;
     status_t                    mPrepareStatus;

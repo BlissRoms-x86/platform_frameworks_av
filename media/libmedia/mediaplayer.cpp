@@ -60,7 +60,6 @@ MediaPlayer::MediaPlayer()
     mCurrentPosition = -1;
     mCurrentSeekMode = MediaPlayerSeekMode::SEEK_PREVIOUS_SYNC;
     mSeekPosition = -1;
-    mSeekTime = -1;
     mSeekMode = MediaPlayerSeekMode::SEEK_PREVIOUS_SYNC;
     mCurrentState = MEDIA_PLAYER_IDLE;
     mPrepareSync = false;
@@ -585,12 +584,6 @@ status_t MediaPlayer::seekTo_l(int msec, MediaPlayerSeekMode mode)
 
 status_t MediaPlayer::seekTo(int msec, MediaPlayerSeekMode mode)
 {
-    if (mSeekTime == msec) {
-        ALOGW("Duplicate seek time: %d", msec);
-        return NO_ERROR;
-    } else {
-        mSeekTime = msec;
-    }
     mLockThreadId = getThreadId();
     Mutex::Autolock _l(mLock);
     status_t result = seekTo_l(msec, mode);
