@@ -2159,22 +2159,14 @@ status_t AudioFlinger::openOutput(audio_module_handle_t module,
                 mHardwareStatus = AUDIO_HW_SET_MODE;
                 mPrimaryHardwareDev->hwDevice()->setMode(mMode);
                 mHardwareStatus = AUDIO_HW_IDLE;
-            } else if (mPrimaryHardwareDev == NULL)  {
-                ALOGV("Using available module %d as the primary audio interface", module);
-                mPrimaryHardwareDev = playbackThread->getOutput()->audioHwDev;
-
-                AutoMutex lock(mHardwareLock);
-                mHardwareStatus = AUDIO_HW_SET_MODE;
-                mPrimaryHardwareDev->hwDevice()->setMode(mMode);
-                mHardwareStatus = AUDIO_HW_IDLE;
             }
-
         } else {
             MmapThread *mmapThread = (MmapThread *)thread.get();
             mmapThread->ioConfigChanged(AUDIO_OUTPUT_OPENED);
         }
         return NO_ERROR;
     }
+
     return NO_INIT;
 }
 
