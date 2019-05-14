@@ -38,7 +38,7 @@ using VolumeGroupVector = std::vector<volume_group_t>;
 /**
  * This interface is dedicated to the policy manager that a Policy Engine shall implement.
  */
-class EngineInterface
+class AudioPolicyManagerInterface
 {
 public:
     /**
@@ -303,13 +303,7 @@ public:
     virtual void dump(String8 *dst) const = 0;
 
 protected:
-    virtual ~EngineInterface() {}
+    virtual ~AudioPolicyManagerInterface() {}
 };
-
-__attribute__((visibility("default")))
-extern "C" EngineInterface* createEngineInstance();
-
-__attribute__((visibility("default")))
-extern "C" void destroyEngineInstance(EngineInterface *engine);
 
 } // namespace android

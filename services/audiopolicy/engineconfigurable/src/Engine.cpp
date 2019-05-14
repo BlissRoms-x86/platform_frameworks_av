@@ -361,7 +361,7 @@ bool Engine::setDeviceTypesForProductStrategy(product_strategy_t strategy, audio
 }
 
 template <>
-EngineInterface *Engine::queryInterface()
+AudioPolicyManagerInterface *Engine::queryInterface()
 {
     return this;
 }

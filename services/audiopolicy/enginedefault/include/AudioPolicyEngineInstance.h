@@ -17,10 +17,11 @@
 #pragma once
 
 class AudioPolicyManagerInterface;
-class AudioPolicyPluginInterface;
 
-namespace android {
-namespace audio_policy {
+namespace android
+{
+namespace audio_policy
+{
 
 class Engine;
 
@@ -71,9 +72,5 @@ private:
 template <>
 AudioPolicyManagerInterface *EngineInstance::queryInterface() const;
 
-template <>
-AudioPolicyPluginInterface *EngineInstance::queryInterface() const;
-
 } // namespace audio_policy
-
 } // namespace android
