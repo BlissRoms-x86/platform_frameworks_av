@@ -56,6 +56,7 @@ OMXMaster::OMXMaster() {
     addVendorPlugin();
     addPlugin(new SoftOMXPlugin);
     addUserPlugin();
+    addPlugin("libffmpeg_omx.so");
 }
 
 OMXMaster::~OMXMaster() {

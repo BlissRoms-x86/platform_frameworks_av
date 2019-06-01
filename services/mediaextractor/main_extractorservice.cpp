@@ -28,6 +28,8 @@
 #include <android-base/properties.h>
 #include <utils/misc.h>
 
+#include <media/stagefright/FFMPEGSoftCodec.h>
+
 // from LOCAL_C_INCLUDES
 #include "IcuUtils.h"
 #include "MediaExtractorService.h"
@@ -56,6 +58,7 @@ int main(int argc __unused, char** argv)
     //as pread64 are used by linker but aren't allowed in the minijail. By
     //calling the function before entering minijail, we can force dlopen.
     android::report_sysprop_change();
+    FFMPEGSoftCodec::getSniffer();
 
     SetUpMinijail(kSystemSeccompPolicyPath, kVendorSeccompPolicyPath);
 
