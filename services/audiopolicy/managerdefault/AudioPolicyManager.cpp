@@ -2239,22 +2239,16 @@ status_t AudioPolicyManager::startInput(audio_port_handle_t portId)
         return status;
     }
 
-    // increment activity count before calling getNewInputDevice() below as only active sessions
+  // increment activity count before calling getNewInputDevice() below as only active sessions
     // are considered for device selection
     inputDesc->setClientActive(client, true);
 
     // indicate active capture to sound trigger service if starting capture from a mic on
     // primary HW module
     sp<DeviceDescriptor> device = getNewInputDevice(inputDesc);
-    if (device != nullptr) {
-        status = setInputDevice(input, device, true /* force */);
-    } else {
-        ALOGW("%s no new input device can be found for descriptor %d",
-                __FUNCTION__, inputDesc->getId());
-        status = BAD_VALUE;
-    }
+    setInputDevice(input, device, true /* force */);
 
-    if (status == NO_ERROR && inputDesc->activeCount() == 1) {
+    if (inputDesc->activeCount()  == 1) {
         sp<AudioPolicyMix> policyMix = inputDesc->mPolicyMix.promote();
         // if input maps to a dynamic policy with an activity listener, notify of state change
         if ((policyMix != NULL)
@@ -2285,16 +2279,11 @@ status_t AudioPolicyManager::startInput(audio_port_handle_t portId)
                         address, "remote-submix", AUDIO_FORMAT_DEFAULT);
             }
         }
-    } else if (status != NO_ERROR) {
-        // Restore client activity state.
-        inputDesc->setClientActive(client, false);
-        inputDesc->stop();
     }
 
-    ALOGV("%s input %d source = %d status = %d exit",
-            __FUNCTION__, input, client->source(), status);
+    ALOGV("%s input %d source = %d exit", __FUNCTION__, input, client->source());
 
-    return status;
+    return NO_ERROR;
 }
 
 status_t AudioPolicyManager::stopInput(audio_port_handle_t portId)
