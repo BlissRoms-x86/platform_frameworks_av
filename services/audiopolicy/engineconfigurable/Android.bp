@@ -38,7 +38,6 @@ cc_library_shared {
         "libutils",
         "libmedia_helper",
         "libaudiopolicy",
-        "libparameter",
         "libxml2",
     ],
 }

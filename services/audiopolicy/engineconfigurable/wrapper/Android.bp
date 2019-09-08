@@ -16,6 +16,5 @@ cc_library {
         "liblog",
         "libutils",
         "libmedia_helper",
-        "libparameter",
     ],
 }
