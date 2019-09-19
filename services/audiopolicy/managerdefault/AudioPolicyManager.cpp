@@ -4301,9 +4301,9 @@ AudioPolicyManager::AudioPolicyManager(AudioPolicyClientInterface *clientInterfa
 //  switched to XML since its deprecation on O.
 // TODO: after Q release, remove this check and flag as XML is now the only
 //        option and all legacy platform should have transitioned to XML.
-#ifndef USE_XML_AUDIO_POLICY_CONF
-#error Audio policy no longer supports legacy .conf configuration format
-#endif
+//#ifndef USE_XML_AUDIO_POLICY_CONF
+//#error Audio policy no longer supports legacy .conf configuration format
+//#endif
 
 void AudioPolicyManager::loadConfig() {
     if (deserializeAudioPolicyXmlConfig(getConfig()) != NO_ERROR) {
