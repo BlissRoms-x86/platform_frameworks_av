@@ -24,6 +24,10 @@
 #include <cstring>
 #include <ctime>
 #include <string>
+#ifdef TARGET_NEEDS_CLIENT_INFO
+#include <iostream>
+#include <fstream>
+#endif
 #include <sys/types.h>
 #include <inttypes.h>
 #include <pthread.h>
@@ -70,6 +74,8 @@
 #include "utils/CameraTraces.h"
 #include "utils/TagMonitor.h"
 
+#include <vendor/lineage/camera/motor/1.0/ICameraMotor.h>
+
 namespace {
     const char* kPermissionServiceName = "permission";
 }; // namespace anonymous
@@ -83,6 +89,7 @@ using hardware::ICameraServiceProxy;
 using hardware::ICameraServiceListener;
 using hardware::camera::common::V1_0::CameraDeviceStatus;
 using hardware::camera::common::V1_0::TorchModeStatus;
+using vendor::lineage::camera::motor::V1_0::ICameraMotor;
 
 // ----------------------------------------------------------------------------
 // Logging support -- this is for debugging only
@@ -1242,7 +1249,6 @@ Status CameraService::connect(
                 ret.toString8());
         return ret;
     }
-
     *device = client;
     return ret;
 }
@@ -1314,6 +1320,12 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
     String8 clientName8(clientPackageName);
 
     int originalClientPid = 0;
+
+    //if the upper layer does not assign HAL version with API 1, then set HAL1 by default
+    if (strcmp(clientName8.string(), String8("com.oneplus.camera")) == 0 && 
+            effectiveApiLevel == API_1 && halVersion== CAMERA_HAL_API_VERSION_UNSPECIFIED) {
+        halVersion = CAMERA_DEVICE_API_VERSION_1_0;
+    }
 
     ALOGI("CameraService::connect call (PID %d \"%s\", camera ID %s) for HAL version %s and "
             "Camera API version %d", clientPid, clientName8.string(), cameraId.string(),
@@ -1455,6 +1467,11 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
         } else {
             // Otherwise, add client to active clients list
             finishConnectLocked(client, partial);
+
+            sp<ICameraMotor> cameraMotor = ICameraMotor::getService();
+            if (cameraMotor != nullptr) {
+                cameraMotor->onConnect(cameraId.string());
+            }
         }
     } // lock is destroyed, allow further connect calls
 
@@ -2052,31 +2069,37 @@ sp<MediaPlayer> CameraService::newMediaPlayer(const char *file) {
     return mp;
 }
 
-void CameraService::loadSound() {
+void CameraService::increaseSoundRef() {
+    Mutex::Autolock lock(mSoundLock);
+    mSoundRef++;
+}
+
+void CameraService::loadSoundLocked(sound_kind kind) {
     ATRACE_CALL();
 
-    Mutex::Autolock lock(mSoundLock);
-    LOG1("CameraService::loadSound ref=%d", mSoundRef);
-    if (mSoundRef++) return;
-
-    mSoundPlayer[SOUND_SHUTTER] = newMediaPlayer("/product/media/audio/ui/camera_click.ogg");
-    if (mSoundPlayer[SOUND_SHUTTER] == nullptr) {
-        mSoundPlayer[SOUND_SHUTTER] = newMediaPlayer("/system/media/audio/ui/camera_click.ogg");
-    }
-    mSoundPlayer[SOUND_RECORDING_START] = newMediaPlayer("/product/media/audio/ui/VideoRecord.ogg");
-    if (mSoundPlayer[SOUND_RECORDING_START] == nullptr) {
-        mSoundPlayer[SOUND_RECORDING_START] =
+    LOG1("CameraService::loadSoundLocked ref=%d", mSoundRef);
+    if (SOUND_SHUTTER == kind && mSoundPlayer[SOUND_SHUTTER] == NULL) {
+        mSoundPlayer[SOUND_SHUTTER] = newMediaPlayer("/product/media/audio/ui/camera_click.ogg");
+        if (mSoundPlayer[SOUND_SHUTTER] == nullptr) {
+            mSoundPlayer[SOUND_SHUTTER] = newMediaPlayer("/system/media/audio/ui/camera_click.ogg");
+        }
+    } else if (SOUND_RECORDING_START == kind && mSoundPlayer[SOUND_RECORDING_START] ==  NULL) {
+        mSoundPlayer[SOUND_RECORDING_START] = newMediaPlayer("/product/media/audio/ui/VideoRecord.ogg");
+        if (mSoundPlayer[SOUND_RECORDING_START] == nullptr) {
+            mSoundPlayer[SOUND_RECORDING_START] =
                 newMediaPlayer("/system/media/audio/ui/VideoRecord.ogg");
-    }
-    mSoundPlayer[SOUND_RECORDING_STOP] = newMediaPlayer("/product/media/audio/ui/VideoStop.ogg");
-    if (mSoundPlayer[SOUND_RECORDING_STOP] == nullptr) {
-        mSoundPlayer[SOUND_RECORDING_STOP] = newMediaPlayer("/system/media/audio/ui/VideoStop.ogg");
+        }
+    } else if (SOUND_RECORDING_STOP == kind && mSoundPlayer[SOUND_RECORDING_STOP] == NULL) {
+        mSoundPlayer[SOUND_RECORDING_STOP] = newMediaPlayer("/product/media/audio/ui/VideoStop.ogg");
+        if (mSoundPlayer[SOUND_RECORDING_STOP] == nullptr) {
+            mSoundPlayer[SOUND_RECORDING_STOP] = newMediaPlayer("/system/media/audio/ui/VideoStop.ogg");
+        }
     }
 }
 
-void CameraService::releaseSound() {
+void CameraService::decreaseSoundRef() {
     Mutex::Autolock lock(mSoundLock);
-    LOG1("CameraService::releaseSound ref=%d", mSoundRef);
+    LOG1("CameraService::decreaseSoundRef ref=%d", mSoundRef);
     if (--mSoundRef) return;
 
     for (int i = 0; i < NUM_SOUNDS; i++) {
@@ -2092,6 +2115,7 @@ void CameraService::playSound(sound_kind kind) {
 
     LOG1("playSound(%d)", kind);
     Mutex::Autolock lock(mSoundLock);
+    loadSoundLocked(kind);
     sp<MediaPlayer> player = mSoundPlayer[kind];
     if (player != 0) {
         player->seekTo(0);
@@ -2121,7 +2145,7 @@ CameraService::Client::Client(const sp<CameraService>& cameraService,
 
     mRemoteCallback = cameraClient;
 
-    cameraService->loadSound();
+    cameraService->increaseSoundRef();
 
     LOG1("Client::Client X (pid %d, id %d)", callingPid, mCameraId);
 }
@@ -2131,7 +2155,7 @@ CameraService::Client::~Client() {
     ALOGV("~Client");
     mDestructionStarted = true;
 
-    sCameraService->releaseSound();
+    sCameraService->decreaseSoundRef();
     // unconditionally disconnect. function is idempotent
     Client::disconnect();
 }
@@ -2199,6 +2223,11 @@ binder::Status CameraService::BasicClient::disconnect() {
         return res;
     }
     mDisconnected = true;
+
+    sp<ICameraMotor> cameraMotor = ICameraMotor::getService();
+    if (cameraMotor != nullptr) {
+        cameraMotor->onDisconnect(mCameraIdStr.string());
+    }
 
     sCameraService->removeByClient(this);
     sCameraService->logDisconnected(mCameraIdStr, mClientPid,
@@ -2290,6 +2319,11 @@ status_t CameraService::BasicClient::startCameraOps() {
     sCameraService->updateProxyDeviceState(ICameraServiceProxy::CAMERA_STATE_OPEN,
             mCameraIdStr, mCameraFacing, mClientPackageName, apiLevel);
 
+#ifdef TARGET_NEEDS_CLIENT_INFO
+    std::ofstream cpf("/data/misc/camera/client_package_name");
+    std::string cpn = String8(mClientPackageName).string();
+    cpf << cpn;
+#endif
     return OK;
 }
 

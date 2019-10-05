@@ -81,7 +81,8 @@ LOCAL_SHARED_LIBRARIES:= \
     android.hardware.camera.device@1.0 \
     android.hardware.camera.device@3.2 \
     android.hardware.camera.device@3.3 \
-    android.hardware.camera.device@3.4
+    android.hardware.camera.device@3.4 \
+    vendor.lineage.camera.motor@1.0
 
 ifeq ($(TARGET_USES_QTI_CAMERA_DEVICE), true)
 LOCAL_CFLAGS += -DQTI_CAMERA_DEVICE
@@ -114,6 +115,10 @@ endif
 
 ifneq ($(TARGET_CAMERA_NEEDS_ADD_STATES_IN_ENUMERATE),)
     LOCAL_CFLAGS += -DCAMERA_NEEDS_ADD_STATES_IN_ENUMERATE
+endif
+
+ifeq ($(TARGET_CAMERA_NEEDS_CLIENT_INFO),true)
+LOCAL_CFLAGS += -DTARGET_NEEDS_CLIENT_INFO
 endif
 
 LOCAL_MODULE:= libcameraservice
