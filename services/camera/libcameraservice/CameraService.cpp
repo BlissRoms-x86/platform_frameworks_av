@@ -76,6 +76,8 @@
 #include "utils/TagMonitor.h"
 #include "utils/CameraThreadState.h"
 
+#include <vendor/lineage/camera/motor/1.0/ICameraMotor.h>
+
 namespace {
     const char* kPermissionServiceName = "permission";
 }; // namespace anonymous
@@ -91,6 +93,7 @@ using hardware::ICameraServiceProxy;
 using hardware::ICameraServiceListener;
 using hardware::camera::common::V1_0::CameraDeviceStatus;
 using hardware::camera::common::V1_0::TorchModeStatus;
+using vendor::lineage::camera::motor::V1_0::ICameraMotor;
 
 // ----------------------------------------------------------------------------
 // Logging support -- this is for debugging only
@@ -781,7 +784,11 @@ int32_t CameraService::mapToInterface(StatusInternal status) {
 Status CameraService::initializeShimMetadata(int cameraId) {
     int uid = CameraThreadState::getCallingUid();
 
+#ifdef NO_CAMERA_SERVER
+    String16 internalPackageName("media");
+#else
     String16 internalPackageName("cameraserver");
+#endif
     String8 id = String8::format("%d", cameraId);
     Status ret = Status::ok();
     sp<Client> tmp = nullptr;
@@ -862,7 +869,9 @@ Status CameraService::getLegacyParametersLazy(int cameraId,
 static bool isTrustedCallingUid(uid_t uid) {
     switch (uid) {
         case AID_MEDIA:        // mediaserver
+#ifndef NO_CAMERA_SERVER
         case AID_CAMERASERVER: // cameraserver
+#endif
         case AID_RADIO:        // telephony
             return true;
         default:
@@ -978,6 +987,7 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
                 clientName8.string(), clientUid, clientPid, cameraId.string());
     }
 
+#ifndef NO_CAMERA_SERVER
     // Make sure the UID is in an active state to use the camera
     if (!mUidPolicy->isUidActive(callingUid, String16(clientName8))) {
         int32_t procState = mUidPolicy->getProcState(callingUid);
@@ -997,6 +1007,7 @@ Status CameraService::validateClientPermissionsLocked(const String8& cameraId,
                 "Caller \"%s\" (PID %d, UID %d) cannot open camera \"%s\" when sensor privacy "
                 "is enabled", clientName8.string(), clientUid, clientPid, cameraId.string());
     }
+#endif
 
     // Only use passed in clientPid to check permission. Use calling PID as the client PID that's
     // connected to camera service directly.
@@ -1528,6 +1539,11 @@ Status CameraService::connectHelper(const sp<CALLBACK>& cameraCb, const String8&
         } else {
             // Otherwise, add client to active clients list
             finishConnectLocked(client, partial);
+
+            sp<ICameraMotor> cameraMotor = ICameraMotor::getService();
+            if (cameraMotor != nullptr) {
+                cameraMotor->onConnect(cameraId.string());
+            }
         }
     } // lock is destroyed, allow further connect calls
 
@@ -2003,7 +2019,8 @@ bool CameraService::evictClientIdByRemote(const wp<IBinder>& remote) {
                 ret = true;
             }
         }
-
+        //clear the evicted client list before acquring service lock again.
+        evicted.clear();
         // Reacquire mServiceLock
         mServiceLock.lock();
 
@@ -2389,6 +2406,11 @@ binder::Status CameraService::BasicClient::disconnect() {
         return res;
     }
     mDisconnected = true;
+
+    sp<ICameraMotor> cameraMotor = ICameraMotor::getService();
+    if (cameraMotor != nullptr) {
+        cameraMotor->onDisconnect(mCameraIdStr.string());
+    }
 
     sCameraService->removeByClient(this);
     sCameraService->logDisconnected(mCameraIdStr, mClientPid, String8(mClientPackageName));
