@@ -212,6 +212,7 @@ Return<void> DrmPlugin::getKeyRequest_1_1(
 }
 
 void DrmPlugin::setPlayPolicy() {
+    android::Mutex::Autolock lock(mPlayPolicyLock);
     mPlayPolicy.clear();
 
     KeyValue policy;
@@ -338,7 +339,6 @@ Return<Status> DrmPlugin::setPropertyByteArray(
 Return<void> DrmPlugin::queryKeyStatus(
         const hidl_vec<uint8_t>& sessionId,
         queryKeyStatus_cb _hidl_cb) {
-
     if (sessionId.size() == 0) {
         // Returns empty key status KeyValue pair
         _hidl_cb(Status::BAD_VALUE, hidl_vec<KeyValue>());
@@ -348,12 +348,14 @@ Return<void> DrmPlugin::queryKeyStatus(
     std::vector<KeyValue> infoMapVec;
     infoMapVec.clear();
 
+    mPlayPolicyLock.lock();
     KeyValue keyValuePair;
     for (size_t i = 0; i < mPlayPolicy.size(); ++i) {
         keyValuePair.key = mPlayPolicy[i].key;
         keyValuePair.value = mPlayPolicy[i].value;
         infoMapVec.push_back(keyValuePair);
     }
+    mPlayPolicyLock.unlock();
     _hidl_cb(Status::OK, toHidlVec(infoMapVec));
     return Void();
 }
@@ -531,6 +533,11 @@ Return<Status> DrmPlugin::releaseSecureStops(const SecureStopRelease& ssRelease)
     //    count - number of secure stops
     //    list of fixed length secure stops
     size_t countBufferSize = sizeof(uint32_t);
+    if (input.size() < countBufferSize) {
+        // SafetyNet logging
+        android_errorWriteLog(0x534e4554, "144766455");
+        return Status::BAD_VALUE;
+    }
     uint32_t count = 0;
     sscanf(reinterpret_cast<char*>(input.data()), "%04" PRIu32, &count);
 
