@@ -218,7 +218,7 @@ cc_library_shared {
             // enable experiments only in userdebug and eng builds
             cflags: ["-DENABLE_STAGEFRIGHT_EXPERIMENTS"],
         },
-        lineage: {
+        bliss: {
             target_omx_legacy_rescaling: {
                 cppflags: ["-DUSE_LEGACY_RESCALING"],
             },
