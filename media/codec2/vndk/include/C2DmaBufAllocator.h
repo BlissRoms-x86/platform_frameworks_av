@@ -42,7 +42,7 @@ class C2DmaBufAllocator : public C2Allocator {
 
     virtual c2_status_t status() const { return mInit; }
 
-    virtual bool checkHandle(const C2Handle* const o) const override { return CheckHandle(o); }
+    virtual bool checkHandle(const C2Handle* const o) { return CheckHandle(o); }
 
     static bool CheckHandle(const C2Handle* const o);
 
